@@ -1,0 +1,18 @@
+# Saved cookies (contains sensitive session data)
+cookies.pkl
+peer_review_cookies.pkl
+
+# Pegawai data files
+pegawai_names.txt
+pegawai_scores.txt
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# pytest cache
+.pytest_cache/
+.venv/
+
