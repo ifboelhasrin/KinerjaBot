@@ -562,33 +562,55 @@ class TestKuesioner:
         
         # Click "Selesai dan Kirim" button
         print("\n🔘 Clicking 'Selesai dan Kirim' button...")
-        try:
-            # Same selector as Selanjutnya button
-            submit_selector = "#__nuxt > div > div > div > section > section > div.mt-8.lg\\:w-8\\/12.pr-2.flex.justify-between > button:nth-child(2)"
-            
-            submit_button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, submit_selector))
-            )
-            submit_button.click()
-            print("   ✓ Clicked 'Selesai dan Kirim' button")
-            time.sleep(2)  # Wait for submission
-            return True
-        except (NoSuchElementException, TimeoutException) as e:
-            print(f"   ⚠️  Could not find or click 'Selesai dan Kirim' button: {e}")
-            # Try alternative methods
+        time.sleep(2)
+        
+        # Try multiple selectors in order
+        selectors = [
+            (By.CSS_SELECTOR, "#__nuxt > div > div > div > section > section > div.mt-8.lg\\:w-8\\/12.pr-2.flex.justify-between > button:nth-child(2)"),
+            (By.XPATH, "//*[@id=\"__nuxt\"]/div/div/div/section/section/div[2]/button[2]"),
+            (By.XPATH, "//button[contains(@class, 'bg-green-700') and contains(text(), 'Selesai')]"),
+            (By.XPATH, "//button[contains(text(), 'Selesai') or contains(text(), 'Kirim')]"),
+        ]
+        
+        for by, selector in selectors:
             try:
-                # Try XPath by text
-                submit_xpath = "//button[contains(text(), 'Selesai') or contains(text(), 'Kirim')]"
-                submit_button = WebDriverWait(self.driver, 5).until(
-                    EC.element_to_be_clickable((By.XPATH, submit_xpath))
+                # Wait for button to be present and enabled
+                submit_button = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((by, selector))
                 )
-                submit_button.click()
-                print("   ✓ Clicked 'Selesai dan Kirim' button (using XPath)")
-                time.sleep(2)
-                return True
-            except Exception as e2:
-                print(f"   ⚠️  Alternative method also failed: {e2}")
-                return successful > 0  # Return True if comments were added even if button click failed
+                
+                # Check if button is disabled
+                is_disabled = submit_button.get_attribute("disabled") is not None
+                if is_disabled:
+                    print(f"   ⚠️  Button found but is disabled, waiting...")
+                    # Wait for button to become enabled
+                    WebDriverWait(self.driver, 10).until(
+                        lambda d: submit_button.get_attribute("disabled") is None
+                    )
+                
+                # Scroll into view
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", submit_button)
+                time.sleep(0.5)
+                
+                # Try regular click first
+                try:
+                    submit_button.click()
+                    print(f"   ✓ Clicked 'Selesai dan Kirim' button (using {by})")
+                    time.sleep(2)
+                    return True
+                except Exception:
+                    # Fallback to JavaScript click
+                    self.driver.execute_script("arguments[0].click();", submit_button)
+                    print(f"   ✓ Clicked 'Selesai dan Kirim' button using JavaScript (using {by})")
+                    time.sleep(2)
+                    return True
+                    
+            except (NoSuchElementException, TimeoutException):
+                continue
+        
+        # If all selectors failed
+        print(f"   ⚠️  Could not find or click 'Selesai dan Kirim' button with any selector")
+        return successful > 0  # Return True if comments were added even if button click failed
     
     def click_random_buttons_until_done(self):
         """Randomly click between left and right buttons until no buttons are found"""

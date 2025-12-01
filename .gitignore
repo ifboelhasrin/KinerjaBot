@@ -1,6 +1,8 @@
 # Saved cookies (contains sensitive session data)
-cookies.pkl
-peer_review_cookies.pkl
+*.pkl
+*.csv
+*.xlsx
+*.txt
 
 # Pegawai data files
 pegawai_names.txt

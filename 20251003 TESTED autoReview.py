@@ -17,22 +17,34 @@ class TestReview:
         yield
         self.driver.quit()
     
-    def load_cookies(self):
+    def load_cookies(self, url=None):
         """Load saved cookies if they exist"""
-        cookie_file = "cookies.pkl"
-        if os.path.exists(cookie_file):
-            try:
-                self.driver.get("https://kinerja.jabarprov.go.id/")
-                cookies = pickle.load(open(cookie_file, "rb"))
-                for cookie in cookies:
-                    try:
-                        self.driver.add_cookie(cookie)
-                    except Exception as e:
-                        print(f"Could not add cookie: {e}")
-                self.driver.refresh()
-                return True
-            except Exception as e:
-                print(f"Error loading cookies: {e}")
+        # Try multiple cookie files (same pattern as autoKuesioner)
+        cookie_files = ["peer_review_cookies.pkl", "cookies.pkl"]
+        
+        for cookie_file in cookie_files:
+            if os.path.exists(cookie_file):
+                try:
+                    # Navigate to a page first (required for adding cookies)
+                    if url:
+                        self.driver.get(url)
+                    else:
+                        self.driver.get("https://kinerja.jabarprov.go.id/")
+                    
+                    # Load cookies from file
+                    cookies = pickle.load(open(cookie_file, "rb"))
+                    for cookie in cookies:
+                        try:
+                            self.driver.add_cookie(cookie)
+                        except Exception as e:
+                            print(f"Could not add cookie: {e}")
+                    self.driver.refresh()
+                    print(f"✓ Loaded cookies from {cookie_file}")
+                    return True
+                except Exception as e:
+                    print(f"Error loading cookies from {cookie_file}: {e}")
+                    continue
+        
         return False
     
     def save_cookies(self):
@@ -59,7 +71,7 @@ class TestReview:
           time.sleep(2)  # Brief pause to ensure page is loaded
       
       # Automation starts here
-      max_iterations = 25  # Safety limit
+      max_iterations = 100  # Safety limit
       iteration = 0
       
       while iteration < max_iterations:
