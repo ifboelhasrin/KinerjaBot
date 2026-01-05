@@ -562,7 +562,7 @@ class TestKuesioner:
         
         # Click "Selesai dan Kirim" button
         print("\n🔘 Clicking 'Selesai dan Kirim' button...")
-        time.sleep(2)
+        time.sleep(3)  # Give more time for page to settle
         
         # Try multiple selectors in order
         selectors = [
@@ -574,38 +574,62 @@ class TestKuesioner:
         
         for by, selector in selectors:
             try:
-                # Wait for button to be present and enabled
-                submit_button = WebDriverWait(self.driver, 10).until(
+                # Wait for button to be present first
+                submit_button = WebDriverWait(self.driver, 15).until(
                     EC.presence_of_element_located((by, selector))
                 )
+                print(f"   ✓ Found button using {by}")
                 
                 # Check if button is disabled
                 is_disabled = submit_button.get_attribute("disabled") is not None
                 if is_disabled:
-                    print(f"   ⚠️  Button found but is disabled, waiting...")
+                    print(f"   ⚠️  Button found but is disabled, waiting for it to become enabled...")
                     # Wait for button to become enabled
-                    WebDriverWait(self.driver, 10).until(
+                    WebDriverWait(self.driver, 15).until(
                         lambda d: submit_button.get_attribute("disabled") is None
                     )
+                    print(f"   ✓ Button is now enabled")
+                
+                # Wait for button to be clickable
+                submit_button = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((by, selector))
+                )
                 
                 # Scroll into view
-                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", submit_button)
-                time.sleep(0.5)
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", submit_button)
+                time.sleep(1)  # Wait after scroll
                 
-                # Try regular click first
+                # Try JavaScript click first (more reliable for React/Vue apps)
                 try:
-                    submit_button.click()
-                    print(f"   ✓ Clicked 'Selesai dan Kirim' button (using {by})")
-                    time.sleep(2)
-                    return True
-                except Exception:
-                    # Fallback to JavaScript click
                     self.driver.execute_script("arguments[0].click();", submit_button)
                     print(f"   ✓ Clicked 'Selesai dan Kirim' button using JavaScript (using {by})")
-                    time.sleep(2)
-                    return True
+                    time.sleep(3)  # Wait longer after click
                     
-            except (NoSuchElementException, TimeoutException):
+                    # Verify click worked by checking if button is gone or page changed
+                    try:
+                        # Try to find button again - if it's gone, click worked
+                        WebDriverWait(self.driver, 2).until(
+                            EC.staleness_of(submit_button)
+                        )
+                        print(f"   ✓ Verified: Button disappeared after click (click successful)")
+                    except TimeoutException:
+                        # Button still there, but that's okay - might be a different state
+                        print(f"   ℹ️  Button still present, but click was executed")
+                    
+                    return True
+                except Exception as js_err:
+                    # Fallback to regular click
+                    try:
+                        submit_button.click()
+                        print(f"   ✓ Clicked 'Selesai dan Kirim' button (using {by})")
+                        time.sleep(3)
+                        return True
+                    except Exception as click_err:
+                        print(f"   ⚠️  Both JavaScript and regular click failed: {click_err}")
+                        continue
+                    
+            except (NoSuchElementException, TimeoutException) as e:
+                print(f"   ⚠️  Selector {by} failed: {e}")
                 continue
         
         # If all selectors failed

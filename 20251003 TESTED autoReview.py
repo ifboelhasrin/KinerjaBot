@@ -2,6 +2,7 @@ import pytest
 import time
 import pickle
 import os
+from getpass import getpass
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -56,16 +57,134 @@ class TestReview:
         except Exception as e:
             print(f"Could not save cookies: {e}")
     
+    def login_via_terminal(self):
+        """Prompt for credentials in terminal and automate login"""
+        print("\n" + "="*60)
+        print("🔐 LOGIN REQUIRED")
+        print("="*60)
+        print("\n📋 Please enter your login credentials:")
+        username = input("Username: ").strip()
+        password = getpass("Password: ").strip()
+        
+        if not username or not password:
+            print("\n❌ Username and password are required!")
+            return False
+        
+        try:
+            print("\n🌐 Navigating to login page...")
+            self.driver.get("https://kinerja.jabarprov.go.id/")
+            time.sleep(3)
+            
+            # Find username field
+            username_field = None
+            username_selectors = [
+                (By.ID, "username"),
+                (By.ID, "email"),
+                (By.NAME, "username"),
+                (By.NAME, "email"),
+                (By.CSS_SELECTOR, "input[type='text']"),
+                (By.CSS_SELECTOR, "input[type='email']"),
+            ]
+            
+            for selector_type, selector_value in username_selectors:
+                try:
+                    username_field = WebDriverWait(self.driver, 5).until(
+                        EC.presence_of_element_located((selector_type, selector_value))
+                    )
+                    print(f"✓ Found username field")
+                    break
+                except TimeoutException:
+                    continue
+            
+            if not username_field:
+                print("⚠️  Could not find username field automatically.")
+                return False
+            
+            # Find password field
+            password_field = None
+            password_selectors = [
+                (By.ID, "password"),
+                (By.NAME, "password"),
+                (By.CSS_SELECTOR, "input[type='password']"),
+            ]
+            
+            for selector_type, selector_value in password_selectors:
+                try:
+                    password_field = self.driver.find_element(selector_type, selector_value)
+                    print(f"✓ Found password field")
+                    break
+                except NoSuchElementException:
+                    continue
+            
+            if not password_field:
+                print("⚠️  Could not find password field automatically.")
+                return False
+            
+            # Fill credentials
+            print("✍️  Entering credentials...")
+            username_field.clear()
+            username_field.send_keys(username)
+            time.sleep(1)
+            
+            password_field.clear()
+            password_field.send_keys(password)
+            time.sleep(1)
+            
+            # Find and click submit button
+            submit_button = None
+            submit_selectors = [
+                (By.CSS_SELECTOR, "button[type='submit']"),
+                (By.XPATH, "//button[contains(text(), 'Login') or contains(text(), 'Masuk')]"),
+                (By.CSS_SELECTOR, ".btn-primary"),
+            ]
+            
+            for selector_type, selector_value in submit_selectors:
+                try:
+                    submit_button = self.driver.find_element(selector_type, selector_value)
+                    print(f"✓ Found submit button")
+                    break
+                except NoSuchElementException:
+                    continue
+            
+            if submit_button:
+                print("🔘 Clicking submit button...")
+                submit_button.click()
+            else:
+                print("⚠️  Could not find submit button, trying form submit...")
+                password_field.submit()
+            
+            # Wait for login to complete
+            print("⏳ Waiting for login to complete...")
+            time.sleep(5)
+            
+            print("✓ Login completed")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error during login: {e}")
+            return False
+    
     def test_20251003Review(self):
       
       # Try to load saved cookies first
       cookies_loaded = self.load_cookies()
       
       if not cookies_loaded:
+          print("\n" + "="*60)
+          print("ℹ️  No cookies found or cookies invalid.")
+          print("🔐 Starting automated login via terminal...")
+          print("="*60)
           
-          print("❌ No cookies found - please extract cookies first using 'python3 extract_cookies.py'")
-          raise Exception("No cookies found. Please extract cookies from regular Safari first using 'python3 extract_cookies.py'")
+          # Login via terminal input
+          login_success = self.login_via_terminal()
           
+          if not login_success:
+              raise Exception("Login failed. Please check your credentials and try again.")
+          
+          # Save cookies for next time
+          print("\n💾 Saving cookies for future use...")
+          self.save_cookies()
+          time.sleep(2)
       else:
           print("✓ Loaded saved cookies - skipping manual login")
           time.sleep(2)  # Brief pause to ensure page is loaded
